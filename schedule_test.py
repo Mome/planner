@@ -31,12 +31,10 @@ class ScheduleTest(unittest.TestCase):
         
         tasklist.schedule()
 
+        tasklist.save('~/tasks')
+
         for t in tasks:
             print(t)
-
-
-
-        
 
     def test_upper(self):
         self.assertEqual('foo'.upper(), 'FOO')

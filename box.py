@@ -170,7 +170,9 @@ keymap = {
     'right':'right',
     'top':'top',
     'bottom':'bottom',
-    'bot':'bot',
+    'bot':'bottom',
+    'rounded':'rounded',
+    'round':'rounded',
 }
 
 line_code = {
