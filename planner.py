@@ -10,79 +10,58 @@ from sortedcontainers import SortedDict
 
 import box
 import configuration
-from task import TaskList, Task, parse_datetime
+from time_parser import parse_datetime
+from task import TaskList, Task
 from terminal_color import style
 from utils import rlinput
 
 class Calendar:
+
     def __init__(self):
         self.days = SortedDict()
+        self.extra_lists = {
+            a:[] for a in
+            ['inbox','archive','later','trash']
+        }
 
+    def add(self, task, daykey, task_index=None):
+        if task_index is None:
+            task_index = -1
+        if task_index < 0:
+            day_len = len(self[daykey])
+            task_index += day_len + 1
+        self[daykey].insert(task_index, task)
 
-    def add(self, task):
-        if task.termin:
-            dt = task.termin
-        else:
-            dt = task.schedule_time
+    def pop(self, daykey, task_index):
+        self[daykey].pop(task_index)
 
-        if dt is None:
-            self.unsorted.append(task)
-        else:
-            key = (dt-datetime(1970,1,1)).days
-            self[key].append(task)
-
-
-    def get_task(self, day_index=None, task_index=None):
-        day = self.get_day(day_index)
-        index = 0
-        for task in day:
-            if task.termin:
-                continue
-            if index == task_index:
-                return task
-        raise IndexError('list index out of range')
-
-
-    def get_day(self, index=None):
-        if index == 'unsorted':
-            list_ = self.unsorted
-        else:
-            list_ = self.days[index]
-    return list_
-
-
-    @staticmethod
-    def parse_task_index(arg):
-        args = list(filter(arg.split()))
-        relative_days = None
-        task_index = None
-        if len(args) >= 1:
-            task_index = int(args[0])
-        if len(args) >= 2:
-            relative_days = int(args[1])
-        day_index = relative_days + (datetime.now()-datetime(1970,1,1)).days
-        return {'day_index':day_index, 'task_index':task_index}
-
-
-    def schedule_future(self):
-        # get index for key
-        # create tasklist for all indieces >= index
+    def move(self, dest1, dest2):
+        task = self.pop(*dest1)
+        self.add(task, *dest2)
+    
+    def schedule(self, dest):
+        #today_key = date_to_daykey(datetime.now()))
+        #today_index = self.days.bisect_left(today_key)
         # schedule tasklist
         # remove all future indices
         # reinsert tasks
         pass
 
     @staticmethod
-    def getkey(dt=None):
+    def date_to_daykey(dt):
         if dt is None:
             dt = datetime.now()
         return (dt-datetime(1970,1,1)).days
 
-    def __getitem__(self, index):
-        index = int(index)
-        if index not in self.days:
-            self.days[index] = []
-        return self.days[index]
+    def __getitem__(self, daykey):
+        if daykey in self.extra_lists:
+            list_ = self.extra_lists[daykey] 
+        else:
+            daykey= int(daykey)
+            if daykey not in self.days:
+                self.days[daykey] = []
+            list_ = self.days[daykey]
+        return list_
 
     @classmethod
     def load(cls):
@@ -101,8 +80,8 @@ class Calendar:
 
 
 class CalendarInterface:
-    def __init__(self, Calendar, cal_conf):
-        self.cal = cal
+    def __init__(self, calendar, cal_conf):
+        self.cal = calendar
         self.colnum = cal_conf.getint('ColumnNumber')
         self.style1 = cal_conf['LineStyle1']
         self.style2 = cal_conf['LineStyle2']
@@ -113,9 +92,14 @@ class CalendarInterface:
         self.undonestyles = cal_conf['UndoneStyles']
         self.linestyle = box.get_linestyle(self.style1, self.style2)
 
-    def add(self, **args):
+    def add(self, daykey=None, task_index=None, **args):
         #task_index = Calendar.parse_task_index(index_str))
-        self.cal.add(task=Task(**args))
+        if daykey==None:
+            daykey = 'inbox'
+        self.cal.add(
+            daykey=daykey,
+            task_index=task_index,
+            task=Task(**args))
 
     def do(self, arg):
         index_dict = Calendar.parse_task_index(arg)
@@ -126,11 +110,18 @@ class CalendarInterface:
         self.cal.get_task(**index_dict).undo()
 
     def render(self, init_date):
+        inbox = False
         if isinstance(init_date, str):
+            if init_date == 'inbox':
+                init_date = '0'
+                inbox = True
             init_date = parse_datetime(init_date)
 
-        key = Calendar.getkey(init_date)
-        taskss = [cal[k] for k in range(key, key+self.colnum)]
+        key = Calendar.date_to_daykey(init_date)
+        taskss = [self.cal[k] for k in range(key, key+self.colnum)]
+
+        if inbox:
+            taskss[-1] = self.cal['inbox']
 
         heads = [(init_date + timedelta(days=i)).strftime('%A') for i in range(self.colnum)]
         explicite = [[t for t in tasks if t.termin] for tasks in taskss]
@@ -177,10 +168,10 @@ class CalendarInterface:
                 else:
                     indent = str(i).zfill(2) + ' '
                 cells = fillup(wrap(t.label, width=colwidth, initial_indent=indent))
-                if task.done:
-                    style(cells, self.donestyle)
+                if t.done:
+                    style(cells, self.donestyles)
                 else:
-                    style(cells, self.donestyle)
+                    style(cells, self.donestyles)
                 col.extend(cells)
 
         # set all columns to same length
@@ -196,6 +187,18 @@ class CalendarInterface:
             lines.append(line)
 
         return '\n'.join(lines)
+
+    @staticmethod
+    def parse_task_index(arg):
+        args = list(filter(arg.split()))
+        relative_days = None
+        task_index = None
+        if len(args) >= 1:
+            task_index = int(args[0])
+        if len(args) >= 2:
+            relative_days = int(args[1])
+        day_index = relative_days + (datetime.now()-datetime(1970,1,1)).days
+        return {'day_index':day_index, 'task_index':task_index}
 
     @staticmethod
     def _equalize_columns(columns, filler):

@@ -12,6 +12,10 @@ adverb_map = {'last':-1,'this':0,'next':1}
 
 def parse_datetime(date_str):
     now = datetime.now()
+
+    if not date_str:
+        return now
+
     parameters = {}
     modifier = 0
     date_str = date_str.lower()
@@ -89,9 +93,9 @@ def next_weekday(d, weekday):
     if days_ahead <= 0: # Target day already happened this week
         days_ahead += 7
     return d + timedelta(days_ahead)
-
-for test_str in ['1.','2','12.3.13','12.4 12:12', '12:', 'next friday', 'this monday', 'tom']:
-    print(test_str, ':', parse_datetime(test_str))
+if __name__ == '__main__':
+    for test_str in ['1.','2','12.3.13','12.4 12:12', '12:', 'next friday', 'this monday', 'tom']:
+        print(test_str, ':', parse_datetime(test_str))
 
 #------------------------------------------
 """
