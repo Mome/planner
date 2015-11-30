@@ -257,7 +257,7 @@ def edit_dialog(task):
 if __name__ == '__main__':
     
     import sys
-
+    
     if len(sys.argv) == 1:
         command = 'list'
         args = []
@@ -274,6 +274,9 @@ if __name__ == '__main__':
     conf = configuration.load_configuration()
     cali = CalendarInterface(cal, conf['CalendarInterface'])
 
+    # separate argments with commans instead whitespace 
+    ' '.join(args).split(',')
+
     if command == 'add':
         label = ' '.join(args)
         cali.add(label = label)
@@ -283,6 +286,8 @@ if __name__ == '__main__':
         cali.undo(' '.join(args))
     elif command == 'edit':
         cali.edit(' '.join(args))
+    elif command == 'push':
+        cali.push(' '.join(args))
     elif command == 'list':
         print(cali.render(' '.join(args)))
 
