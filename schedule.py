@@ -1,4 +1,9 @@
-import pulp
+try:
+    import pulp
+except Exception as e:
+    # print(e)
+    pass
+
 from datetime import datetime, timedelta
 from itertools import accumulate, product
 from math import ceil, exp

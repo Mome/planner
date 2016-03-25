@@ -5,7 +5,6 @@ import os
 from textwrap import TextWrapper, wrap
 import pickle
 
-
 from sortedcontainers import SortedDict
 
 import box
@@ -15,13 +14,14 @@ from task import TaskList, Task
 from terminal_color import style
 from utils import rlinput
 
+
 class Calendar:
 
     def __init__(self):
         self.days = SortedDict()
         self.extra_lists = {
             a:[] for a in
-            ['inbox','archive','later','trash']
+            ['inbox', 'later', 'archive', 'trash']
         }
 
     def add(self, task, daykey, task_index=None):
@@ -92,38 +92,87 @@ class CalendarInterface:
         self.undonestyles = cal_conf['UndoneStyles']
         self.linestyle = box.get_linestyle(self.style1, self.style2)
 
-    def add(self, daykey=None, task_index=None, **args):
+    def add(self, label, day=None, *, task_index=None, **args):
         #task_index = Calendar.parse_task_index(index_str))
-        if daykey==None:
+        if day==None:
             daykey = 'inbox'
+        else:
+            date = parse_datetime(day)
+            daykey = Calendar.date_to_daykey(date)
+        args.update({'label':label})
         self.cal.add(
             daykey=daykey,
             task_index=task_index,
             task=Task(**args))
 
-    def do(self, arg):
-        index_dict = Calendar.parse_task_index(arg)
-        self.cal.get_task(**index_dict).do()
+    def remove(self, arg=''):
+        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        print(self.cal[daykey])
+        del self.cal[daykey][task_index]
 
-    def undo(self, arg):
-        index_dict = Calendar.parse_task_index(arg)
-        self.cal.get_task(**index_dict).undo()
+    def drop(self, arg):
+        daykey1, task_index = CalendarInterface.parse_task_index(arg)
+        if daykey1 == 'trash':
+            self.cal.pop(daykey1, task_index)
+        else:
+            if daykey1 == 'inbox':
+                daykey2 = 'later'
+            elif daykey1 == 'later':
+                daykey2 = 'archive'
+            elif daykey1 == 'archive':
+                daykey2 = 'trash'
+            else:
+                daykey2 = 'inbox'
+            self.cal.move((daykey1, task_index),(daykey2, -1))
+
+    def push(self, arg=''):
+        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        if daykey == 'inbox':
+            next_dk = 0
+        elif daykey == 'later':
+            next_dk = 'inbox'
+        elif daykey == 'archive':
+            next_dk = 'later'
+        elif daykey == 'trash':
+            next_dk = 'archive'
+        else:
+            next_dk = int(daykey)+1
+        self.cal.move((daykey, task_index), (next_dk, -1))
+
+    def do(self, arg=''):
+        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        print(self.cal[daykey])
+        self.cal[daykey][task_index].do()
+
+    def undo(self, arg=''):
+        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        self.cal[daykey][task_index].undo()
+
+    def show(self, init_date=None):
+        if init_date is None:
+            init_date = ''
+        print(self.render(init_date))
+
+    def create(self, arg):
+        if arg == 'config':
+            conf = configuration.load_configuration()
+            configuration.save_configuration(conf)
+        else:
+            raise ValueError('Unkonwn argument for create!' + str(arg))
 
     def render(self, init_date):
         inbox = False
-        if isinstance(init_date, str):
-            if init_date == 'inbox':
-                init_date = '0'
-                inbox = True
-            init_date = parse_datetime(init_date)
+        if init_date == 'inbox':
+            taskss = [self.cal['inbox']]
+            heads  = ['Inbox']
+        else :
+            if isinstance(init_date, str):
+                init_date = parse_datetime(init_date)
 
-        key = Calendar.date_to_daykey(init_date)
-        taskss = [self.cal[k] for k in range(key, key+self.colnum)]
+            key = Calendar.date_to_daykey(init_date)
+            taskss = [self.cal[k] for k in range(key, key+self.colnum)]
+            heads = [(init_date + timedelta(days=i)).strftime('%a %d. %b') for i in range(self.colnum)]
 
-        if inbox:
-            taskss[-1] = self.cal['inbox']
-
-        heads = [(init_date + timedelta(days=i)).strftime('%A') for i in range(self.colnum)]
         explicite = [[t for t in tasks if t.termin] for tasks in taskss]
         implicite = [[t for t in tasks if not t.termin] for tasks in taskss]
         return self._render(heads, explicite, implicite)
@@ -147,7 +196,7 @@ class CalendarInterface:
         horzline_index = len(columns[0])
         horzl = self.linestyle['horizontal']*colwidth
         for col in columns: col.append(horzl)
-        
+ 
         # add explicite
         for col, tasks in zip(columns, explicite):
             for t in tasks:
@@ -159,25 +208,29 @@ class CalendarInterface:
                 fillup(lines)
                 style(lines, self.terminstyles)
                 col.extend(lines)
+            
+       # add hspace under explicite tasks            
+        for col, ex, im in zip(columns, explicite, implicite):
+            if ex and im: col.append(empty)
 
         # add implicite
         for col, tasks in zip(columns, implicite):
             for i,t in enumerate(tasks):
                 if len(tasks)<10:
-                    indent = str(1) + ' '
+                    indent = str(i) + ' '
                 else:
                     indent = str(i).zfill(2) + ' '
                 cells = fillup(wrap(t.label, width=colwidth, initial_indent=indent))
                 if t.done:
                     style(cells, self.donestyles)
                 else:
-                    style(cells, self.donestyles)
+                    style(cells, self.undonestyles)
                 col.extend(cells)
 
         # set all columns to same length
         type(self)._equalize_columns(columns, filler=empty)
-
-        # join colloms to output string
+         
+        # join columns to output string
         lines = []
         for i, line in enumerate(zip(*columns)):
             if i == horzline_index:
@@ -190,15 +243,23 @@ class CalendarInterface:
 
     @staticmethod
     def parse_task_index(arg):
-        args = list(filter(arg.split()))
-        relative_days = None
-        task_index = None
-        if len(args) >= 1:
-            task_index = int(args[0])
-        if len(args) >= 2:
+        print('parse task index:', arg)
+
+        # list of arguments as string
+        args = list(filter(bool, arg.split()))
+       
+        if len(args) > 0:
             relative_days = int(args[1])
+        else:
+            self.cal[daykey][task_index]
+
+        if len(args) > 1:
+            task_index = int(args[0])
+        else:
+            task_index = 0
+ 
         day_index = relative_days + (datetime.now()-datetime(1970,1,1)).days
-        return {'day_index':day_index, 'task_index':task_index}
+        return day_index, task_index
 
     @staticmethod
     def _equalize_columns(columns, filler):
@@ -220,12 +281,6 @@ class CalendarInterface:
                 column[i] = cell + ' '*(colwidth-len(cell))
         return column
 
-def argjoin(arg):
-    if not arg or arg.lower()=='none':
-        return None
-    if not isinstance(arg, str):
-        return ' '.join(arg)
-    return arg
 
 def edit_dialog(task):
     for para in ['label','preftime','priority','termin','deadline','duration']:
@@ -254,16 +309,45 @@ def edit_dialog(task):
     task.termin = parse_date(term_str)
 
 
+def parse_command_parameters(args, varnames, sep='='):
+    args = [a.split(sep) for a in args]
+   
+    parameters = {}
+    
+    # positional arguments
+    allow_positional = True
+    for i,a in enumerate(args):
+        if len(a)==1:
+            if not allow_positional:
+                raise SyntaxError('non-keyword arg after keyword arg')
+            parameters[varnames[i]] = a[0].strip()
+        elif len(a)==2:
+            if not allow_positional:
+                allow_positional = False
+            parameters[a[0].strip()] = a[1].strip()
+        else:
+            raise SyntaxError('Only one separation character allowed!')
+
+    return parameters
+    
+
+        
+
 if __name__ == '__main__':
     
     import sys
-    
+   
+    # show tasks if no input argument 
     if len(sys.argv) == 1:
-        command = 'list'
+        command = 'show'
         args = []
     else:
         command = sys.argv[1]
         args = sys.argv[2:]
+    
+    # separate arguments with commans instead whitespace 
+    args = ' '.join(args)
+    args = args.split(',') if args else []
 
     try:
         cal = Calendar.load()
@@ -273,25 +357,28 @@ if __name__ == '__main__':
 
     conf = configuration.load_configuration()
     cali = CalendarInterface(cal, conf['CalendarInterface'])
+    func = cali.__class__.__dict__[command]
+    #import ipdb; ipdb.set_trace()
+    params = parse_command_parameters(args, func.__code__.co_varnames[1:])    
+    func(cali, **params)
+    cal.save()
 
-    # separate argments with commans instead whitespace 
-    ' '.join(args).split(',')
-
+    """
     if command == 'add':
-        label = ' '.join(args)
-        cali.add(label = label)
+        cali.add(**paras)
     elif command == 'do':
-        cali.do(' '.join(args))
+        cali.do(**paras)
     elif command == 'undo':
         cali.undo(' '.join(args))
     elif command == 'edit':
         cali.edit(' '.join(args))
     elif command == 'push':
         cali.push(' '.join(args))
+    elif command == 'pull':
+        cali.pull(' '.join(args))
     elif command == 'list':
         print(cali.render(' '.join(args)))
-
-    cal.save()
+    """
  
 
 

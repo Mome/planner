@@ -1,4 +1,4 @@
-#! /usr/bin/python2
+from __future__ import print_function
 import BaseHTTPServer
 import os
 import time
@@ -86,7 +86,7 @@ def main():
         RequestHandlerClass=HTTPRequestHandler
     )
 
-    print time.asctime(), "Server Starts - %s:%s" % (HOST_NAME, PORT_NUMBER)
+    print(time.asctime(), "Server Starts - %s:%s" % (HOST_NAME, PORT_NUMBER))
 
     try:
         httpd.serve_forever()
@@ -95,7 +95,7 @@ def main():
     finally:
         httpd.server_close()
 
-    print time.asctime(), "Server Stops - %s:%s" % (HOST_NAME, PORT_NUMBER)
+    print(time.asctime(), "Server Stops - %s:%s" % (HOST_NAME, PORT_NUMBER))
 
 
 if __name__ == '__main__':

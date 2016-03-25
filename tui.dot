@@ -1,0 +1,32 @@
+digraph ParseIndex{
+
+start [shape=point]
+
+start -> show
+start -> add
+start -> remove
+start -> push
+start -> drop
+start -> do
+start -> undo
+
+parse  [shape=box label="parse_index(arg)"]
+lenarg [label="len(arg)" shape=diamond]
+op1 [style=filled fillcolor=lightgrey shape=none label="list = 0\nindex = -1"]
+op2 [style=filled fillcolor=lightgrey shape=none label="list = arg[0]\nindex = -1"]
+op3 [style=filled fillcolor=lightgrey shape=none label="list = arg[0]\nindex = arg[1]"]
+len1 [style=filled fillcolor=black fontcolor=white fontsize=10 label="len==0"] 
+len2 [style=filled fillcolor=black fontcolor=white fontsize=10 label="len==1"] 
+len3 [style=filled fillcolor=black fontcolor=white fontsize=10 label="len==2"] 
+
+parse -> lenarg
+lenarg -> len1 [arrowhead=none]
+lenarg -> len2 [arrowhead=none]
+lenarg -> len3 [arrowhead=none]
+
+len1 -> op1
+len2 -> op2
+len3 -> op3
+
+
+}
