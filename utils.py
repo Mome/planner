@@ -20,3 +20,11 @@ def print_percent(num):
         num = str(num)
     print('\b\b\b' + num + '%', end='')
     sys.stdout.flush()
+
+def isint(num):
+    try:
+        int(num)
+        b = True
+    except:
+        b = False
+    return b

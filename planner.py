@@ -4,6 +4,7 @@ from functools import partial
 import os
 from textwrap import TextWrapper, wrap
 import pickle
+from collections import namedtuple
 
 from sortedcontainers import SortedDict
 
@@ -12,17 +13,16 @@ import configuration
 from time_parser import parse_datetime
 from task import TaskList, Task
 from terminal_color import style
-from utils import rlinput
+from utils import rlinput, isint
 
+TaskLocation = namedtuple('TaskLocaiton', ['listkey', 'inlistkey'])
 
 class Calendar:
 
     def __init__(self):
         self.days = SortedDict()
-        self.extra_lists = {
-            a:[] for a in
-            ['inbox', 'later', 'archive', 'trash']
-        }
+        list_names = ['inbox', 'later', 'archive', 'trash']
+        self.extra_lists = {a:[] for a in list_names}
 
     def add(self, task, daykey, task_index=None):
         if task_index is None:
@@ -93,7 +93,7 @@ class CalendarInterface:
         self.linestyle = box.get_linestyle(self.style1, self.style2)
 
     def add(self, label, day=None, *, task_index=None, **args):
-        #task_index = Calendar.parse_task_index(index_str))
+        #task_index = Calendar.parse_inlistkey(index_str))
         if day==None:
             daykey = 'inbox'
         else:
@@ -106,12 +106,14 @@ class CalendarInterface:
             task=Task(**args))
 
     def remove(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_task_index(arg)
-        print(self.cal[daykey])
-        del self.cal[daykey][task_index]
+        args = arg.split()
+        assert len(args)==2
+        listkey = self.parse_inlistkey(args[0])
+        inlistkey = int(args[1])
+        self.cal.pop(listkey, inlistkey)
 
     def drop(self, arg):
-        daykey1, task_index = CalendarInterface.parse_task_index(arg)
+        daykey1, task_index = CalendarInterface.parse_inlistkey(arg)
         if daykey1 == 'trash':
             self.cal.pop(daykey1, task_index)
         else:
@@ -126,7 +128,7 @@ class CalendarInterface:
             self.cal.move((daykey1, task_index),(daykey2, -1))
 
     def push(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
         if daykey == 'inbox':
             next_dk = 0
         elif daykey == 'later':
@@ -140,18 +142,20 @@ class CalendarInterface:
         self.cal.move((daykey, task_index), (next_dk, -1))
 
     def do(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
         print(self.cal[daykey])
         self.cal[daykey][task_index].do()
 
     def undo(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_task_index(arg)
+        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
         self.cal[daykey][task_index].undo()
 
-    def show(self, init_date=None):
-        if init_date is None:
-            init_date = ''
-        print(self.render(init_date))
+    def show(self, init_listkey=None):
+        if init_listkey is None:
+            init_listkey = ''
+        print()
+        print(self.render(init_listkey))
+        print()
 
     def create(self, arg):
         if arg == 'config':
@@ -181,7 +185,7 @@ class CalendarInterface:
     def _render(self, heads, explicite, implicite):
         assert len(heads)==len(explicite)==len(implicite)
 
-        # initialize constants
+        # initialize constantsrender
         termwidth, _ = os.get_terminal_size()
         colnum = len(heads)
         colwidth = (termwidth+1)//colnum - 1
@@ -241,25 +245,14 @@ class CalendarInterface:
 
         return '\n'.join(lines)
 
-    @staticmethod
-    def parse_task_index(arg):
-        print('parse task index:', arg)
-
-        # list of arguments as string
-        args = list(filter(bool, arg.split()))
-       
-        if len(args) > 0:
-            relative_days = int(args[1])
+    def parse_inlistkey(self, arg):
+        if isint(arg):
+            relative_days = int(arg)
+            inlistkey = relative_days + (datetime.now()-datetime(1970,1,1)).days
         else:
-            self.cal[daykey][task_index]
-
-        if len(args) > 1:
-            task_index = int(args[0])
-        else:
-            task_index = 0
- 
-        day_index = relative_days + (datetime.now()-datetime(1970,1,1)).days
-        return day_index, task_index
+            inlistkey = arg.strip()
+        
+        return inlistkey
 
     @staticmethod
     def _equalize_columns(columns, filler):
