@@ -21,8 +21,8 @@ class Calendar:
 
     def __init__(self):
         self.days = SortedDict()
-        list_names = ['inbox', 'later', 'archive', 'trash']
-        self.extra_lists = {a:[] for a in list_names}
+        self.list_names = ['inbox', 'later', 'archive', 'trash']
+        self.extra_lists = {a:[] for a in self.list_names}
 
     def add(self, task, daykey, task_index=None):
         if task_index is None:
@@ -33,12 +33,21 @@ class Calendar:
         self[daykey].insert(task_index, task)
 
     def pop(self, daykey, task_index):
-        self[daykey].pop(task_index)
+        return self[daykey].pop(task_index)
 
     def move(self, dest1, dest2):
         task = self.pop(*dest1)
         self.add(task, *dest2)
-    
+
+    def first_undone_index(self, listkey):
+        tasklist = self.__getitem__(listkey)
+        for i,task in enumerate(tasklist):
+            if not task.done:
+                break
+        else:
+            i = None
+        return i
+
     def schedule(self, dest):
         #today_key = date_to_daykey(datetime.now()))
         #today_index = self.days.bisect_left(today_key)
@@ -54,6 +63,7 @@ class Calendar:
         return (dt-datetime(1970,1,1)).days
 
     def __getitem__(self, daykey):
+        assert isint(daykey) or daykey in self.extra_lists
         if daykey in self.extra_lists:
             list_ = self.extra_lists[daykey] 
         else:
@@ -93,7 +103,7 @@ class CalendarInterface:
         self.linestyle = box.get_linestyle(self.style1, self.style2)
 
     def add(self, label, day=None, *, task_index=None, **args):
-        #task_index = Calendar.parse_inlistkey(index_str))
+        #task_index = Calendar.parse_listkey(index_str))
         if day==None:
             daykey = 'inbox'
         else:
@@ -108,12 +118,14 @@ class CalendarInterface:
     def remove(self, arg=''):
         args = arg.split()
         assert len(args)==2
-        listkey = self.parse_inlistkey(args[0])
+        listkey = self.parse_listkey(args[0])
         inlistkey = int(args[1])
         self.cal.pop(listkey, inlistkey)
 
+
     def drop(self, arg):
-        daykey1, task_index = CalendarInterface.parse_inlistkey(arg)
+
+        daykey1, task_index = CalendarInterface.parse_listkey(arg)
         if daykey1 == 'trash':
             self.cal.pop(daykey1, task_index)
         else:
@@ -125,30 +137,69 @@ class CalendarInterface:
                 daykey2 = 'trash'
             else:
                 daykey2 = 'inbox'
-            self.cal.move((daykey1, task_index),(daykey2, -1))
+            self.cal.move((daykey1, task_index), (daykey2, -1))
+
 
     def push(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
-        if daykey == 'inbox':
-            next_dk = 0
-        elif daykey == 'later':
-            next_dk = 'inbox'
-        elif daykey == 'archive':
-            next_dk = 'later'
-        elif daykey == 'trash':
-            next_dk = 'archive'
+
+        args = arg.split()
+
+        # find list
+        if len(args) == 0:
+            listkey = -1
+            pushlist = 'all undone'
+        elif len(args) == 1:
+            listkey = self.parse_listkey(args[0])
+            pushlist = 'all undone'
         else:
-            next_dk = int(daykey)+1
-        self.cal.move((daykey, task_index), (next_dk, -1))
+            listkey = self.parse_listkey(args[0])
+            pushlist = (int(a) for a in args[1:])
+
+        # find next list
+        if listkey in self.cal.list_names:
+            index = self.cal.list_names.index(listkey)
+            if index == 0:
+                next_listkey = self.parse_listkey(0)
+            else:
+                next_listkey = self.cal.list_names[index-1]
+        else:
+            next_listkey = listkey + 1
+
+        # arrange pushlist
+        if pushlist == 'all undone':
+            pushlist = range(len(cal[listkey]))
+            pushlist = [index for index in pushlist if not cal[listkey][index].done]
+        pushlist = sorted(set(pushlist), reverse=True)
+
+        # move tasks
+        for inlistkey in pushlist:
+            self.cal.move((listkey, inlistkey), (next_listkey, 0))
+
 
     def do(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
-        print(self.cal[daykey])
-        self.cal[daykey][task_index].do()
+        args = arg.split()
+        if len(args) == 0:
+            listkey = self.parse_listkey(0)
+            inlistkey = self.cal.first_undone_index(listkey)
+        elif len(args) == 1:
+            listkey = self.parse_listkey(args[0])
+            inlistkey = self.cal.first_undone_index(listkey)
+        elif len(args) == 2:
+            listkey = self.parse_listkey(args[0])
+            inlistkey = int(args[1])
+        else:
+            raise ValueError('´do´ can have at most two arguments!')
+
+        if inlistkey is None:
+            print('No undone in', listkey)
+        else:
+            self.cal[listkey][inlistkey].do()
+
 
     def undo(self, arg=''):
-        daykey, task_index = CalendarInterface.parse_inlistkey(arg)
+        daykey, task_index = CalendarInterface.parse_listkey(arg)
         self.cal[daykey][task_index].undo()
+
 
     def show(self, init_listkey=None):
         if init_listkey is None:
@@ -157,12 +208,14 @@ class CalendarInterface:
         print(self.render(init_listkey))
         print()
 
+
     def create(self, arg):
         if arg == 'config':
             conf = configuration.load_configuration()
             configuration.save_configuration(conf)
         else:
             raise ValueError('Unkonwn argument for create!' + str(arg))
+
 
     def render(self, init_date):
         inbox = False
@@ -183,6 +236,8 @@ class CalendarInterface:
 
 
     def _render(self, heads, explicite, implicite):
+        """explicite referes to tasks with termins"""
+
         assert len(heads)==len(explicite)==len(implicite)
 
         # initialize constantsrender
@@ -220,11 +275,12 @@ class CalendarInterface:
         # add implicite
         for col, tasks in zip(columns, implicite):
             for i,t in enumerate(tasks):
-                if len(tasks)<10:
-                    indent = str(i) + ' '
+                if len(tasks) < 11:
+                    iindent = str(i) + ' '
                 else:
-                    indent = str(i).zfill(2) + ' '
-                cells = fillup(wrap(t.label, width=colwidth, initial_indent=indent))
+                    iindent = str(i).zfill(2) + ' '
+                sindent = ' '*len(iindent)
+                cells = fillup(wrap(t.label, width=colwidth, initial_indent=iindent, subsequent_indent=sindent))
                 if t.done:
                     style(cells, self.donestyles)
                 else:
@@ -245,14 +301,14 @@ class CalendarInterface:
 
         return '\n'.join(lines)
 
-    def parse_inlistkey(self, arg):
+    def parse_listkey(self, arg):
         if isint(arg):
             relative_days = int(arg)
-            inlistkey = relative_days + (datetime.now()-datetime(1970,1,1)).days
+            listkey = relative_days + (datetime.now()-datetime(1970,1,1)).days
         else:
-            inlistkey = arg.strip()
+            listkey = arg.strip()
         
-        return inlistkey
+        return listkey
 
     @staticmethod
     def _equalize_columns(columns, filler):
