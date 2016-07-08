@@ -22,14 +22,14 @@ EXTRA_LINE = """
 <style class="fallback">body{white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script src="http://casual-effects.com/markdeep/latest/markdeep.min.js"></script>
 """
 
-FILE_PATH = os.path.expanduser('~/context')
+FILE_PATH = os.path.expanduser('/home/pi/context')
 
 def prepare_content(text):
     defs = text.split('\n\n') 
-    for i,d in enumerate(defs):
-        if ' - ' not in d: continue
-        head, tail = d.split(' - ',1)
-        defs[i] = '__' + head + '__ - ' + tail
+    #for i,d in enumerate(defs):
+    #    if ' - ' not in d: continue
+    #    head, tail = d.split(' - ',1)
+    #    defs[i] = '__' + head + '__ - ' + tail
     return '\n\n'.join(defs)
         
 

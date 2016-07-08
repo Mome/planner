@@ -176,6 +176,40 @@ class CalendarInterface:
             self.cal.move((listkey, inlistkey), (next_listkey, 0))
 
 
+    def pull(self, arg=''):
+
+        args = arg.split()
+
+        # find list
+        if len(args) == 0:
+            listkey = self.parse_listkey(-1) 
+            pullist = 'all undone'
+        elif len(args) == 1:
+            listkey = self.parse_listkey(args[0])
+            pullist = 'all undone' 
+        else:
+            listkey = self.parse_listkey(args[0])
+            pullist = (int(a) for a in args[1:])
+
+        # find next list
+        if listkey in self.cal.list_names:
+       	    next_listkey = self.parse_listkey(0)
+        else:
+            next_listkey = listkey - 1
+
+        # arrange pushlist
+        if pullist == 'all undone':
+            pullist = range(len(cal[listkey]))
+            pullist = [index for index in pullist if not cal[listkey][index].done]
+        pullist = sorted(set(pullist), reverse=True)
+
+        # move tasks
+        for inlistkey in pullist:
+            self.cal.move((listkey, inlistkey), (next_listkey, -1))
+
+
+
+
     def do(self, arg=''):
         args = arg.split()
         if len(args) == 0:

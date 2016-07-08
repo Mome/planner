@@ -10,8 +10,8 @@ DEFAULT_CONF.read_dict(
     {
         'CalendarInterface':{
             'ColumnNumber' : 5,
-            'LineStyle1' : 'solid',
-            'LineStyle2' : 'light',
+            'LineStyle1' : 'ascii',
+            'LineStyle2' : 'ascii',
             'ActiveAnsiStyling' : 'yes',
             'HeadStyles' : 'f_magenta',
             'TerminStyles' : 'f_blue',

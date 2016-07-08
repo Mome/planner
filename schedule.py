@@ -167,14 +167,17 @@ def check_constraints(sched_times, tasks, termins):
 
     # check tasks overlap with termins
     for si, ti in product(sched_intervals, termin_intervals):
-        if count_overlap(*si,*ti):
+        # if count_overlap(*si,*ti): # requires python 3.5
+        if count_overlap(*(list(si)+list(ti))): # python 3.4 version
+        
             return False
 
     # check task overlap witch other tasks
     for si1, si2 in product(sched_intervals, repeat=2):
         if si1 is si2:
             continue
-        if count_overlap(*si1,*si2):
+        #if count_overlap(*si1,*si2): # requires python 3.5
+        if count_overlap(*(list(si1)+list(si2))): # python 3.4 version
             return False
 
     return True

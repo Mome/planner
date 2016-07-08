@@ -203,8 +203,12 @@ def get_linestyle(style1='solid', style2='light'):
     else :
         lines = line_sets[style1][style2]
         corners = corner_sets[style2]
-   
-    return { **lines, **corners}
+    
+    # return { **lines, **corners} # requires python 3.5
+    out = {}
+    out.update(lines)
+    out.update(corners)
+    return out
 
 
 def get_connection(top=None, bottom=None, left=None, right=None):
