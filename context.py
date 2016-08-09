@@ -1,39 +1,24 @@
 from __future__ import print_function
-import BaseHTTPServer
 import os
 import time
+import sys
 
-DEFAULT_CONTENT = """
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Mehrzeilige Eingabebereiche definieren</title>
-  </head>
-  <body>
-    <h1>Ganz spontan</h1>
-    <p>Welche HTML-Elemente fallen Ihnen ein, was bewirken sie?<p>
-    <textarea>404 : File not found</textarea>
-  </body>
-</html>
-"""
+if sys.version_info.major == 2:
+    import BaseHTTPServer as server_module
+else:
+    import http.server as server_module
+
 
 EXTRA_LINE = """
-<style class="fallback">body{white-space:pre;font-family:monospace}</style><script src="markdeep.min.js"></script><script src="http://casual-effects.com/markdeep/latest/markdeep.min.js"></script>
+<style class="fallback">body{white-space:pre;font-family:monospace}</style>
+<!-- <script src="markdeep.min.js"></script> -->
+<script src="http://casual-effects.com/markdeep/latest/markdeep.min.js"></script>
 """
 
-FILE_PATH = os.path.expanduser('/home/pi/context')
-
-def prepare_content(text):
-    defs = text.split('\n\n') 
-    #for i,d in enumerate(defs):
-    #    if ' - ' not in d: continue
-    #    head, tail = d.split(' - ',1)
-    #    defs[i] = '__' + head + '__ - ' + tail
-    return '\n\n'.join(defs)
+FILE_PATH = os.path.expanduser('~/context')
         
 
-class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         self.send_response(200)
@@ -43,45 +28,69 @@ class HTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(self):
         self.do_HEAD()        
         try:
-            content = self.load_content()
+            content = load_content(self.path)
         except Exception as e:
-            content = DEFAULT_CONTENT
-            #raise e 
-        self.wfile.write(content)
+            with open('default.html') as f:
+                content = f.read()
+            raise e 
+            print(e)
+        self.wfile.write(content.encode('utf-8'))
 
-    def load_content(self):
-        path = os.path.join(FILE_PATH, self.path[1:])
-        if self.path == '/':
-            title = '**Table of Content**\n'
-            file_list = os.listdir(FILE_PATH)
-            file_list = ['* ['+name+']('+name+')' for name in file_list if not name.startswith('.')]
-            content = '\n\n'.join(file_list)
-        else: 
-            title = os.path.split(path)[1]
-            title = title.replace('_',' ') 
-            title = ''.join(['**',title,'**','\n'])
-            with open(path) as f:
-                text = f.read()
-            content = prepare_content(text)
 
-        return '\n'.join([title, content, EXTRA_LINE])
+def load_content(path):
+
+    if '.' in path:
+        head, tail = path.split(sep='.', maxsplit=1)
+        edit = (tail == 'edit')
+    else:
+        edit = False
+
+    if edit:
+       content = get_edit(path=head)
+    else:
+        content = get_markdeep(path)
+
+    return content
+
+
+def get_markdeep(path):
+
+    if path == '/':
+        title = '**Table of Content**\n'
+        file_list = os.listdir(FILE_PATH)
+        file_list = ['* ['+name+']('+name+')' for name in file_list if not name.startswith('.')]
+        content = '\n\n'.join(file_list)
+    else:
+        path = os.path.join(FILE_PATH, path[1:])
+        with open(path) as f: content = f.read()
+
+    return '\n'.join([content, EXTRA_LINE])
+
+
+def get_edit(path):
+    path = os.path.join(FILE_PATH, path[1:])
+    with open(path) as f:
+        content = f.read()
+
+    with open('default.html') as f:
+        head, tail = f.read().split('<!--splitline-->')
+
+    return head + content + tail
 
 
 def main():
-    import sys
     args = sys.argv[1:]
     if args:
         PORT_NUMBER = int(args[0])
     else:
         PORT_NUMBER = 8000
 
-    FILE_PATH = os.path.expanduser('~/context')
     HOST_NAME = ''
     
     if not os.path.exists(FILE_PATH):
         os.makedirs(FILE_PATH)
     
-    httpd = BaseHTTPServer.HTTPServer(
+    httpd = server_module.HTTPServer(
         server_address=(HOST_NAME, PORT_NUMBER),
         RequestHandlerClass=HTTPRequestHandler
     )
