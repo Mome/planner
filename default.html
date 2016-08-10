@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MD-Editor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+</head>
+<body>
+<textarea id="editor"><!--splitline--></textarea>
+
+
+<script>
+
+function saveDoc() {
+    // var text = document.getElementById("editor").value;
+    var text = simplemde.value();
+    var xhr = new XMLHttpRequest();
+    var fd = new FormData();
+    fd.append('type', 'save');
+    fd.append('text', text);
+    fd.append('filename', location.href.split("/").slice(-1))
+    xhr.open( 'POST', 'save', true );
+    xhr.send( fd );
+}
+
+function getMethods(obj)
+{
+    var res = [];
+    for(var m in obj) {
+        if(typeof obj[m] != "function") {
+            res.push(m)
+        }
+    }
+    return res;
+}
+
+
+var simplemde = new SimpleMDE({
+    toolbar: [
+        {
+            name: "save",
+            action: saveDoc,
+            className: "fa fa-save",
+            title: "Save",
+        },
+        "|", "bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "clean-block", '|', "guide",
+    ],
+})
+
+//window.alert(getMethods(simplemde.options));
+
+</script>
+
+
+</body>
+
+</html>

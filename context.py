@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 import time
 import sys
+import cgi
 
 if sys.version_info.major == 2:
     import BaseHTTPServer as server_module
@@ -16,7 +17,8 @@ EXTRA_LINE = """
 """
 
 FILE_PATH = os.path.expanduser('~/context')
-        
+
+from pprint import pprint
 
 class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
 
@@ -36,19 +38,58 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
             print(e)
         self.wfile.write(content.encode('utf-8'))
 
+    def do_POST(self):
+        ctype, pdict = cgi.parse_header(self.headers['content-type'])
+        pdict['boundary'] = pdict['boundary'].encode('utf-8')
+        if ctype == 'multipart/form-data':
+            postvars = cgi.parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers['content-length'])
+            postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            postvars = {}
+
+        type_ = lob2str(postvars['type'])
+
+        if type_ == 'save':
+            save_file(
+                filename=lob2str(postvars['filename']),
+                content=lob2str(postvars['text']),)
+        else:
+            print('unkown type!!')
+
+def save_file(filename, content):
+
+    if filename.endswith('?edit'):
+        filename = filename[:-len('?edit')]
+    else:
+        raise Exception('Not a valid filename!')
+
+    path = os.path.join(FILE_PATH, filename)
+    with open(path, 'w') as f:
+        f.write(content)
+    print('Content written to:', path)
+
+def lob2str(lob, sep=''):
+    """Converts list of bytes to single string."""
+    return sep.join(b.decode() for b in lob)
 
 def load_content(path):
 
-    if '.' in path:
-        head, tail = path.split(sep='.', maxsplit=1)
+    sep = '?'
+
+    if sep in path:
+        head, tail = path.split(sep, 1)
         edit = (tail == 'edit')
     else:
         edit = False
 
     if edit:
        content = get_edit(path=head)
+       print('get edit')
     else:
         content = get_markdeep(path)
+        print('get markdeep')
 
     return content
 
