@@ -11,6 +11,7 @@ else:
 
 
 EXTRA_LINE = """
+<meta charset="utf-8" lang="en">
 <style class="fallback">body{white-space:pre;font-family:monospace}</style>
 <!-- <script src="markdeep.min.js"></script> -->
 <script src="http://casual-effects.com/markdeep/latest/markdeep.min.js"></script>
@@ -32,10 +33,11 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
         try:
             content = load_content(self.path)
         except Exception as e:
-            with open('default.html') as f:
-                content = f.read()
+            #with open('default.html') as f:
+            #    content = f.read()
             raise e 
-            print(e)
+            content = str(e)
+
         self.wfile.write(content.encode('utf-8'))
 
     def do_POST(self):
@@ -72,7 +74,7 @@ def save_file(filename, content):
 
 def lob2str(lob, sep=''):
     """Converts list of bytes to single string."""
-    return sep.join(b.decode() for b in lob)
+    return sep.join(b.decode('utf-8') for b in lob)
 
 def load_content(path):
 
@@ -113,7 +115,8 @@ def get_edit(path):
     with open(path) as f:
         content = f.read()
 
-    with open('default.html') as f:
+    default_path = os.path.join(os.path.dirname(__file__), 'default.html')
+    with open(default_path) as f:
         head, tail = f.read().split('<!--splitline-->')
 
     return head + content + tail
@@ -121,10 +124,12 @@ def get_edit(path):
 
 def main():
     args = sys.argv[1:]
-    if args:
-        PORT_NUMBER = int(args[0])
-    else:
+    global FILE_PATH
+    FILE_PATH = args[0]
+    if len(args) == 1:
         PORT_NUMBER = 8000
+    else:
+        PORT_NUMBER = int(args[1])
 
     HOST_NAME = ''
     
@@ -136,7 +141,7 @@ def main():
         RequestHandlerClass=HTTPRequestHandler
     )
 
-    print(time.asctime(), "Server Starts - %s:%s" % (HOST_NAME, PORT_NUMBER))
+    print(time.asctime(), "Server Starts - %s:%s in %s" % (HOST_NAME, PORT_NUMBER, FILE_PATH))
 
     try:
         httpd.serve_forever()
