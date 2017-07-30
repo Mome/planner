@@ -12,31 +12,28 @@
 
 <script>
 
+// add functions to the Editor 
 function saveDoc() {
-    // var text = document.getElementById("editor").value;
-    var text = simplemde.value();
+    var text = mde.value();
     var xhr = new XMLHttpRequest();
     var fd = new FormData();
     fd.append('type', 'save');
     fd.append('text', text);
-    fd.append('filename', location.href.split("/").slice(-1))
+    fd.append('filename', location.href.split("/").slice(-1));
     xhr.open( 'POST', 'save', true );
     xhr.send( fd );
-}
+};
 
-function getMethods(obj)
-{
-    var res = [];
-    for(var m in obj) {
-        if(typeof obj[m] != "function") {
-            res.push(m)
-        }
+function showShortcuts() {
+    var obj = mde.options.shortcuts 
+    var s = "";
+    for (x in obj) {
+        s += "\n" + x + " \t"  + obj[x];
     }
-    return res;
-}
+    alert(s);
+};
 
-
-var simplemde = new SimpleMDE({
+var mde = new SimpleMDE({
     toolbar: [
         {
             name: "save",
@@ -44,11 +41,23 @@ var simplemde = new SimpleMDE({
             className: "fa fa-save",
             title: "Save",
         },
-        "|", "bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "clean-block", '|', "guide",
+        "|", "bold", "italic", "heading",
+        "|", "quote", "unordered-list", "ordered-list", "clean-block",
+        "|", "guide",
+        {
+            name: "shortcuts",
+            action: showShortcuts,
+            className: "fa fa-keyboard-o",
+            title: "Shortcuts",
+        },
     ],
-})
+    autosave: {
+        enabled: true,
+        unique_id: location.href,
+    },
+});
 
-//window.alert(getMethods(simplemde.options));
+
 
 </script>
 
