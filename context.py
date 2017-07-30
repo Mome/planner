@@ -17,9 +17,6 @@ EXTRA_LINE = """
 <script src="http://casual-effects.com/markdeep/latest/markdeep.min.js"></script>
 """
 
-FILE_PATH = os.path.expanduser('~/context')
-
-from pprint import pprint
 
 class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
 
@@ -35,8 +32,8 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
         except Exception as e:
             #with open('default.html') as f:
             #    content = f.read()
-            raise e 
             content = str(e)
+            raise e 
 
         self.wfile.write(content.encode('utf-8'))
 
@@ -60,6 +57,7 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
         else:
             print('unkown type!!')
 
+
 def save_file(filename, content):
 
     if filename.endswith('?edit'):
@@ -67,14 +65,16 @@ def save_file(filename, content):
     else:
         raise Exception('Not a valid filename!')
 
-    path = os.path.join(FILE_PATH, filename)
+    path = os.path.join(PATH, filename)
     with open(path, 'w') as f:
         f.write(content)
     print('Content written to:', path)
 
+
 def lob2str(lob, sep=''):
-    """Converts list of bytes to single string."""
+    """Converts a list of bytes to a single string."""
     return sep.join(b.decode('utf-8') for b in lob)
+
 
 def load_content(path):
 
@@ -100,18 +100,18 @@ def get_markdeep(path):
 
     if path == '/':
         title = '**Table of Content**\n'
-        file_list = os.listdir(FILE_PATH)
+        file_list = os.listdir(PATH)
         file_list = ['* ['+name+']('+name+')' for name in file_list if not name.startswith('.')]
         content = '\n\n'.join(file_list)
     else:
-        path = os.path.join(FILE_PATH, path[1:])
+        path = os.path.join(PATH, path[1:])
         with open(path) as f: content = f.read()
 
     return '\n'.join([content, EXTRA_LINE])
 
 
 def get_edit(path):
-    path = os.path.join(FILE_PATH, path[1:])
+    path = os.path.join(PATH, path[1:])
     with open(path) as f:
         content = f.read()
 
@@ -123,25 +123,30 @@ def get_edit(path):
 
 
 def main():
-    args = sys.argv[1:]
-    global FILE_PATH
-    FILE_PATH = args[0]
-    if len(args) == 1:
-        PORT_NUMBER = 8000
-    else:
-        PORT_NUMBER = int(args[1])
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--port', '-p', type=int, default=8000)
+    parser.add_argument('path', nargs='?', default='~/context')
+    args = parser.parse_args()
+    
+    global PORT
+    global PATH
+    
+    PORT = args.port
+    PATH = os.path.expanduser(args.path)
 
     HOST_NAME = ''
     
-    if not os.path.exists(FILE_PATH):
-        os.makedirs(FILE_PATH)
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
     
     httpd = server_module.HTTPServer(
-        server_address=(HOST_NAME, PORT_NUMBER),
+        server_address=(HOST_NAME, PORT),
         RequestHandlerClass=HTTPRequestHandler
     )
 
-    print(time.asctime(), "Server Starts - %s:%s in %s" % (HOST_NAME, PORT_NUMBER, FILE_PATH))
+    print(time.asctime(), "Server Starts - %s:%s in %s" % (HOST_NAME, PORT, PATH))
 
     try:
         httpd.serve_forever()
@@ -150,7 +155,7 @@ def main():
     finally:
         httpd.server_close()
 
-    print(time.asctime(), "Server Stops - %s:%s" % (HOST_NAME, PORT_NUMBER))
+    print(time.asctime(), "Server Stops - %s:%s" % (HOST_NAME, PORT))
 
 
 if __name__ == '__main__':
