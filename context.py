@@ -86,7 +86,10 @@ def load_content(path):
     else:
         edit = False
 
-    if edit:
+    if path[1:] == "resume":
+        content = get_raw(path)  
+
+    elif edit:
        content = get_edit(path=head)
        print('get edit')
     else:
@@ -103,6 +106,9 @@ def get_markdeep(path):
         file_list = os.listdir(FILE_PATH)
         file_list = ['* ['+name+']('+name+')' for name in file_list if not name.startswith('.')]
         content = '\n\n'.join(file_list)
+        
+        content = ''
+        
     else:
         path = os.path.join(FILE_PATH, path[1:])
         with open(path) as f: content = f.read()
@@ -121,6 +127,12 @@ def get_edit(path):
 
     return head + content + tail
 
+def get_raw(path):
+    path = os.path.join(FILE_PATH, path[1:])
+    with open(path, 'r') as f:
+        content = f.read()
+    
+    return content #.decode('unicode_escape').encode('utf-8')
 
 def main():
     args = sys.argv[1:]
