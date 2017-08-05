@@ -28,14 +28,14 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
     
     def do_GET(self):
         self.do_HEAD()
-        
+     
         logger = logging.getLogger('request')
         log_str = 'HOST=%s:PORT=%s:Request=%s' %\
             (*self.client_address, self.requestline)
         logger.info(log_str)
         
         try:
-            content = load_content(self.path)
+            content = load_content(self)
         except Exception as e:
             #with open('default.html') as f:
             #    content = f.read()
@@ -83,7 +83,9 @@ def lob2str(lob, sep=''):
     return sep.join(b.decode('utf-8') for b in lob)
 
 
-def load_content(path):
+def load_content(handler):
+
+    path = handler.path
 
     sep = '?'
 
@@ -93,10 +95,9 @@ def load_content(path):
     else:
         edit = False
 
-    if path[1:] == "resume":
-        print('get raw')
+    if handler.headers.get('User-Agent').startswith('curl'):
         content = get_raw(path)
-        
+        print('gte raw')
     elif edit:
        content = get_edit(path=head)
        print('get edit')
@@ -138,7 +139,7 @@ def get_edit(path):
     return head + content + tail
 
 def get_raw(path):
-    path = os.path.join(FILE_PATH, path[1:])
+    path = os.path.join(PATH, path[1:])
     
     with open(path, 'r') as f:
         content = f.read()
