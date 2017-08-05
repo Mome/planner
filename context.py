@@ -30,7 +30,7 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
         self.do_HEAD()
         
         logger = logging.getLogger('request')
-        log_str = 'HOST=%s:PORT=%s:Request=%s:Header=%s' %\
+        log_str = 'HOST=%s:PORT=%s:Request=%s' %\
             (*self.client_address, self.requestline)
         logger.info(log_str)
         
