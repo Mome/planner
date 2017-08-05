@@ -3,6 +3,7 @@ import os
 import time
 import sys
 import cgi
+import logging
 
 if sys.version_info.major == 2:
     import BaseHTTPServer as server_module
@@ -26,14 +27,20 @@ class HTTPRequestHandler(server_module.BaseHTTPRequestHandler):
         self.end_headers()
     
     def do_GET(self):
-        self.do_HEAD()        
+        self.do_HEAD()
+        
+        logger = logging.getLogger('request')
+        log_str = 'HOST=%s:PORT=%s:Request=%s:Header=%s' %\
+            (*self.client_address, self.requestline)
+        logger.info(log_str)
+        
         try:
             content = load_content(self.path)
         except Exception as e:
             #with open('default.html') as f:
             #    content = f.read()
             content = str(e)
-            raise e 
+            #raise e 
 
         self.wfile.write(content.encode('utf-8'))
 
@@ -87,8 +94,9 @@ def load_content(path):
         edit = False
 
     if path[1:] == "resume":
-        content = get_raw(path)  
-
+        print('get raw')
+        content = get_raw(path)
+        
     elif edit:
        content = get_edit(path=head)
        print('get edit')
@@ -111,8 +119,10 @@ def get_markdeep(path):
         
     else:
         path = os.path.join(PATH, path[1:])
-        with open(path) as f: content = f.read()
-
+        print('PATH:', path)
+        with open(path, 'r') as f:
+            content = f.read()
+            
     return '\n'.join([content, EXTRA_LINE])
 
 
@@ -129,6 +139,7 @@ def get_edit(path):
 
 def get_raw(path):
     path = os.path.join(FILE_PATH, path[1:])
+    
     with open(path, 'r') as f:
         content = f.read()
     
@@ -141,6 +152,11 @@ def main():
     parser.add_argument('--port', '-p', type=int, default=8000)
     parser.add_argument('path', nargs='?', default='~/context')
     args = parser.parse_args()
+    
+    # init logging
+    log_path = os.path.expanduser('~/logs')
+    os.makedirs(log_path, exist_ok=True)
+    logging.basicConfig(filename=os.path.join(log_path, 'context.log'),level=logging.DEBUG)
     
     global PORT
     global PATH
@@ -157,6 +173,7 @@ def main():
         server_address=(HOST_NAME, PORT),
         RequestHandlerClass=HTTPRequestHandler
     )
+        
 
     print(time.asctime(), "Server Starts - %s:%s in %s" % (HOST_NAME, PORT, PATH))
 
