@@ -1,11 +1,12 @@
 
 import argparse
-import os
+from pathlib import Path
 import subprocess
 
-NOTE_DIR = '~/Documents/notes'
+path = Path('~/Documents/notes')
+path = path.expanduser()
 
-editor = 'vim "+normal G$" +startinsert'
+editor = 'vim "+normal Go" +startinsert {filename} -c ":set syntax=markdown"'
 
 parser = argparse.ArgumentParser(description='Take a note.')
 parser.add_argument('filename',
@@ -14,8 +15,6 @@ parser.add_argument('filename',
         help='Name of the note to edit.')
 args = parser.parse_args()
 
-path = os.path.expanduser(NOTE_DIR)
-path = os.path.join(path, args.filename)
-cmd = editor + ' ' + path
-
+filepath = path / args.filename
+cmd = editor.format(filename=filepath)
 subprocess.call(cmd, shell=True)
