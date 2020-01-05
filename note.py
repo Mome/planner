@@ -9,6 +9,18 @@ note_path = note_path.expanduser()
 
 editor = 'vim "+normal Go" +startinsert {filename} -c ":set syntax=markdown"'
 
+# Terminal Colors
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    END = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    YELLOW = '\033[33m'
+
 super_parser = argparse.ArgumentParser()
 subparsers = super_parser.add_subparsers(dest='subparser')
 
@@ -35,6 +47,9 @@ parser.add_argument('line',
 parser = subparsers.add_parser(
     name = 'list',
     help = 'List all notes.')
+parser.add_argument('--all', '-a',
+    action="store_true",
+)
 
 args = super_parser.parse_args()
 
@@ -57,9 +72,12 @@ elif args.subparser == "list":
     note_path_len = len(note_path.parts)
     for path, folders, files in os.walk(note_path):
         relative_path = '.'.join(Path(path).parts[note_path_len:])
+        if not args.all and relative_path == "archive":
+            continue
+        print()
         if relative_path:
-            print()
-            print(relative_path)
-            print("="*len(relative_path))
+            print(colors.HEADER + relative_path + colors.END)
+            #print("="*len(relative_path))
         for f in files:
-            print(' -', f)
+            print(colors.YELLOW + ' -' + colors.END, f)
+    print()
