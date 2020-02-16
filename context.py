@@ -5,7 +5,7 @@ import shutil
 import sys
 
 from pathlib import Path
-from textwrap import TextWrapper
+import textwrap as tw
 
 # load configuration file
 #conf = ConfigParser()
@@ -14,7 +14,8 @@ from textwrap import TextWrapper
 
 DEF_SEP = "\n\n"
 TERM_DESC_SEP = " - "
-REF_SEP = "#"
+REF_SEP = "§"
+SEC_SEP = "#"
 
 class color:
    PURPLE = '\033[95m'
@@ -26,6 +27,7 @@ class color:
    RED = '\033[91m'
    BOLD = '\033[1m'
    UNDERLINE = '\033[4m'
+   GRAY = '\033[90m'
    END = '\033[0m'
 
 class Context:
@@ -61,7 +63,12 @@ class Context:
     @classmethod
     def from_file(cls, path):
         with open(path) as f:
-            content = f.read()
+            lines = f.readlines()
+
+        # for now filter sections
+        rem_secs = lambda line : not line.strip().startswith(SEC_SEP)
+        lines = filter(rem_secs, lines)
+        content = ''.join(lines)
 
         defs = content.split(DEF_SEP)
         defs = map(Context.filter_def, defs)
@@ -94,14 +101,15 @@ class Context:
     def format_def(def_, width):
         term, desc, refs = def_
         lines = []
-        w = TextWrapper(
-            initial_indent =color.YELLOW + term + color.END + TERM_DESC_SEP,
+        w = tw.TextWrapper(
+            initial_indent = color.BOLD + color.YELLOW + term + color.END + TERM_DESC_SEP,
             subsequent_indent = ' ' * (len(term) + len(TERM_DESC_SEP)),
             width = width,
         )
         lines.extend(w.wrap(desc))
         for ref in refs:
-            lines.extend(w.wrap(ref))
+            ref = color.GRAY + REF_SEP + " " + ref + color.END
+            lines.append(tw.indent(ref, prefix=w.subsequent_indent))
         return '\n'.join(lines)
 
 
